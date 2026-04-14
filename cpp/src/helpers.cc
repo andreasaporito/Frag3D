@@ -20,6 +20,16 @@
 #include <utility>
 #include <vector>
 
+// --- The constexpr hashing logic ---
+// example taken from https://hbfs.wordpress.com/2017/01/10/strings-in-c-switchcase-statements/
+constexpr uint64_t mix(char m, uint64_t s) {
+    return ((s << 7) + ~(s >> 3)) + ~m;
+}
+
+constexpr uint64_t hash_str(const char* m) {
+    return (*m) ? mix(*m, hash_str(m + 1)) : 0;
+}
+
 /* -------------------------------------------------------------------------- */
 /* parseArguments                                                             */
 /* -------------------------------------------------------------------------- */
@@ -79,7 +89,41 @@ Args parseArguments(int argc, char *argv[]) {
     } else if (a == "--time" || a == "-T") {
       need_value(a.c_str());
       args.time = to_real(argv[++i]);
-    } else {
+    }
+      else if (a == "--kappa" || a == "-k") {
+      need_value(a.c_str());
+      args.kappa = to_real(argv[++i]);
+    }
+      else if (a == "--center_x" || a == "-cx") {
+      need_value(a.c_str());
+      args.center_x = to_real(argv[++i]);
+    }
+      else if (a == "--center_y" || a == "-cy") {
+      need_value(a.c_str());
+      args.center_y = to_real(argv[++i]);
+    }
+      //optional cutoff, if not provided, std::nullopt is used and no cutoff is applied
+      else if (a == "--cutoff" || a == "-co") {
+      need_value(a.c_str());
+      args.cutoff = to_real(argv[++i]);
+    }
+      else if (a == "--shape" || a == "-sh") {
+      need_value(a.c_str());
+      args.shape = argv[++i];
+    }
+      else if (a == "--angle_xy" || a == "-axy") {
+      need_value(a.c_str());
+      args.angle_xy = to_real(argv[++i]);
+    }
+      else if (a == "--angle_z" || a == "-az") {
+      need_value(a.c_str());
+      args.angle_z = to_real(argv[++i]);
+    }
+      else if (a == "--z_sign" || a == "-zs") {
+      need_value(a.c_str());
+      args.z_sign = to_real(argv[++i]);
+    }
+      else {
       std::cerr << "Warning: ignoring unknown option '" << a << "'.\n";
     }
   }
@@ -172,14 +216,72 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
 /* initImpactVelocityField                                                    */
 /* -------------------------------------------------------------------------- */
 
+// void initImpactVelocityField(akantu::Mesh &mesh,
+//                              akantu::SolidMechanicsModelCohesive &model,
+//                              akantu::Real v0, akantu::Real kappa,
+//                              std::pair<akantu::Real, akantu::Real> center,
+//                              akantu::Real z_sign,
+//                              std::optional<akantu::Real> cutoff) {
+//   using namespace akantu;
+
+//   auto &vel = model.getVelocity(); // Array<Real> [nb_nodes x dim]
+//   auto &nodes = mesh.getNodes();   // Array<Real> [nb_nodes x dim]
+
+//   const auto &lower = mesh.getLowerBounds(); // Vector<Real>
+//   const auto &upper = mesh.getUpperBounds(); // Vector<Real>
+//   const Real L = upper(0) - lower(0);
+
+//   const Real sigma = kappa * L / 2.0;
+//   const Real inv_two_sigma2 = 1.0 / (2.0 * sigma * sigma);
+
+//   const Real cx = center.first;
+//   const Real cy = center.second;
+
+//   const UInt nb_nodes = mesh.getNbNodes();
+//   const UInt dim = mesh.getSpatialDimension();
+//   AKANTU_DEBUG_ASSERT(dim >= 2, "Expected spatial dimension >= 2");
+
+//   for (UInt i = 0; i < nb_nodes; ++i) {
+//     const Real dx = nodes(i, 0) - cx;
+//     const Real dy = nodes(i, 1) - cy;
+//     const Real r2 = dx * dx + dy * dy;
+
+//     Real vz = 0.0;
+//     if (!cutoff || r2 <= (*cutoff) * (*cutoff)) {
+//       vz = z_sign * v0 * std::exp(-r2 * inv_two_sigma2);
+//     }
+
+//     enforce z-only impact
+//     vel(i, 0) = 0.0;
+//     vel(i, 1) = 0.0;
+//     vel(i, 2) = vz;
+//   }
+//   Eccentricity (change cx and cy in dx, dy), Direction of velocity (change vx or/and vy to nonzero),
+//   different options for shape
+//   Synchronize velocities across ghost nodes
+//   model.synchronize(SynchronizationTag::_velocity);
+// }
+
+/* -------------------------------------------------------------------------- */
+/* initImpactVelocityField                                                    */
+/* -------------------------------------------------------------------------- */
+
+//New version with different shape options and direction of velocity (maintain velocity magnitude in the centre of the "impact")
+//direction of velocity defined with the angle in xy plane and the angle 
+//with the z axis. For example, for an impact at 45 degrees in xy plane and 30 degrees with the z axis, we have:
+//angle_xy = 45 degrees, angle_z = 30 degrees. The velocity components would be:
+//vx = v0 * cos(angle_z) * cos(angle_xy)
+//vy = v0 * cos(angle_z) * sin(angle_xy)
 void initImpactVelocityField(akantu::Mesh &mesh,
                              akantu::SolidMechanicsModelCohesive &model,
                              akantu::Real v0, akantu::Real kappa,
                              std::pair<akantu::Real, akantu::Real> center,
                              akantu::Real z_sign,
-                             std::optional<akantu::Real> cutoff) {
+                             std::optional<akantu::Real> cutoff,
+                             const std::string &shape,
+                             const std::pair<akantu::Real, akantu::Real> &angles) {
   using namespace akantu;
-
+  
   auto &vel = model.getVelocity(); // Array<Real> [nb_nodes x dim]
   auto &nodes = mesh.getNodes();   // Array<Real> [nb_nodes x dim]
 
@@ -197,25 +299,43 @@ void initImpactVelocityField(akantu::Mesh &mesh,
   const UInt dim = mesh.getSpatialDimension();
   AKANTU_DEBUG_ASSERT(dim >= 2, "Expected spatial dimension >= 2");
 
+  const uint64_t shape_hash = hash_str(shape.c_str());
+
+  const Real angle_xy_rad = angles.first * M_PI / 180.0;
+  const Real angle_z_rad = angles.second * M_PI / 180.0;
+  const Real cos_z = std::cos(angle_z_rad);
+  const Real sin_z = std::sin(angle_z_rad);
+  const Real cos_xy = std::cos(angle_xy_rad);
+  const Real sin_xy = std::sin(angle_xy_rad);
+
   for (UInt i = 0; i < nb_nodes; ++i) {
     const Real dx = nodes(i, 0) - cx;
     const Real dy = nodes(i, 1) - cy;
     const Real r2 = dx * dx + dy * dy;
 
-    Real vz = 0.0;
     if (!cutoff || r2 <= (*cutoff) * (*cutoff)) {
-      vz = z_sign * v0 * std::exp(-r2 * inv_two_sigma2);
+      Real magnitude = 0.0;
+      switch (shape_hash) {
+        case hash_str("gaussian"):
+          magnitude = v0 * std::exp(-r2 * inv_two_sigma2);
+          break;
+        case hash_str("circular impulse"):
+          magnitude = (r2 <= sigma * sigma) ? v0 : 0.0;
+          break;
+          case hash_str("parabolic"):
+          magnitude = (r2 <= sigma * sigma) ? v0 * (1.0 - r2 / (sigma * sigma)) : 0.0;
+          break;
+        default:
+          std::cerr << "Unknown shape '" << shape << "'. Defaulting to Gaussian.\n";
+          magnitude = v0 * std::exp(-r2 * inv_two_sigma2);
+      }
+
+      vel(i, 0) = magnitude * cos_z * cos_xy;
+      vel(i, 1) = magnitude * cos_z * sin_xy;
+      vel(i, 2) = z_sign * magnitude * sin_z;
     }
 
-    // enforce z-only impact
-    vel(i, 0) = 0.0;
-    vel(i, 1) = 0.0;
-    vel(i, 2) = vz;
   }
-  // Eccentricity (change cx and cy in dx, dy), Direction of velocity (change vx or/and vy to nonzero),
-  // different options for shape
-  // Synchronize velocities across ghost nodes
-  // model.synchronize(SynchronizationTag::_velocity);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -314,4 +434,23 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
     std::cerr
         << "Oh Oh, file is locked or unavailable after multiple retries.\n";
   }
+}
+
+void saveConfigFile(const Args &args, const std::string &outpath) {
+  const std::string config_path = outpath + "config.txt";
+  std::ofstream ofs(config_path);
+  if (!ofs) {
+    std::cerr << "Error: could not write config file to '" << config_path << "'.\n";
+    return;
+  }
+  ofs << "Material file: " << args.material_file << "\n";
+  ofs << "Mesh file: " << args.mesh_file << "\n";
+  ofs << "kappa: " << args.strain_rate << "\n";
+  ofs << "Velocity: " << args.velocity << "\n";
+  ofs << "Safety factor: " << args.safety_factor << "\n";
+  ofs << "Time: " << args.time << "\n";
+  ofs << "Cutoff: " << args.cutoff.value_or(0.0) << "\n";
+  ofs << "Shape: " << args.shape << "\n";
+  ofs << "XY Angle: " << args.angle_xy << "\n";
+  ofs << "Z Angle: " << args.angle_z << "\n";
 }

@@ -25,6 +25,14 @@ struct Args {
   akantu::Real velocity = 10.0;
   akantu::Real safety_factor = 0.2;
   akantu::Real time = 0.0;
+  akantu::Real kappa = 0.2;
+  akantu::Real center_x = 0.0;
+  akantu::Real center_y = 0.0;
+  akantu::Real z_sign = 1.0;
+  std::optional<akantu::Real> cutoff = std::nullopt;
+  std::string shape = "gaussian";
+  akantu::Real angle_xy = 0.0;
+  akantu::Real angle_z = 0.0;
 };
 
 Args parseArguments(int argc, char *argv[]);
@@ -40,11 +48,15 @@ void initImpactVelocityField(
     akantu::Real v0, akantu::Real kappa,
     std::pair<akantu::Real, akantu::Real> center = {0.0, 0.0},
     akantu::Real z_sign = 1.0,
-    std::optional<akantu::Real> cutoff = std::nullopt);
+    std::optional<akantu::Real> cutoff = std::nullopt,
+    const std::string &shape = "gaussian",
+    const std::pair<akantu::Real, akantu::Real> &angles = {0.0, 0.0});
 
 void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file = "../output/tmp/data.h5");
+
+void saveConfigFile(const Args &args, const std::string &outpath);
 
 // ---- tiny helpers
 static inline std::string detect_hostname() {
@@ -82,6 +94,7 @@ int main(int argc, char *argv[]) {
 
   const auto [inpath, outpath] = setupDir(detect_hostname(), args, prank);
   comm.barrier(); // ensure dir is created before proceeding
+  saveConfigFile(args, outpath);
 
   // 2) mesh & model ----------------------------------------------------------
   const Int dim = 3;
@@ -117,10 +130,12 @@ int main(int argc, char *argv[]) {
   // Adjust kappa/center/cutoff to your case.
   initImpactVelocityField(mesh, model,
                           /*v0=*/args.velocity,
-                          /*kappa=*/0.4,
-                          /*center=*/{0.0, 0.0},
-                          /*z_sign=*/+1.0,
-                          /*cutoff=*/std::nullopt); // 4e-3);
+                          /*kappa=*/args.kappa,
+                          /*center=*/{args.center_x, args.center_y},
+                          /*z_sign=*/args.z_sign,
+                          /*cutoff=*/args.cutoff,
+                          /*shape=*/args.shape,
+                          {/*xy_angle=*/args.angle_xy, /*z_angle=*/args.angle_z});
 
   // 4) time integration setup ------------------------------------------------
   Real dt = model.getStableTimeStep() * args.safety_factor;
@@ -137,7 +152,8 @@ int main(int argc, char *argv[]) {
   Real cumulative_work = 0.0;
 
   // 5) main loop -------------------------------------------------------------
-  const int dump_stride = std::min(n_steps, n_steps / 500);
+  const int dump_stride_paraview = std::min(n_steps, n_steps / 500);
+  const int dump_stride_h5 = std::min(n_steps, n_steps / 100);
 
   for (int n = 0; n < n_steps; ++n) {
     // Check cohesive stress (parallel operation with ghost synchronization)
@@ -146,7 +162,7 @@ int main(int argc, char *argv[]) {
     model.solveStep("explicit_lumped");
 
     // Dump results (parallel I/O)
-    if (n % dump_stride == 0) {
+    if (n % dump_stride_paraview == 0) {
       if (prank == 0) {
         std::cout << "Step " << n << " / " << n_steps << "\n" << std::flush;
       }
@@ -154,8 +170,12 @@ int main(int argc, char *argv[]) {
       // Each process writes its partition data
       model.dump();                    // bulk elements
       model.dump("cohesive elements"); // facet dumper (if configured)
+    }
+
+    if (n % dump_stride_h5 == 0 || n == n_steps - 1) {
       dumpResultsH5(mesh,model, n, dt, cumulative_work, outpath + "data.h5");
     }
+
   }
   // Print final statistics from rank 0
   if (prank == 0) {

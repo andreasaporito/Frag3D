@@ -15,6 +15,14 @@ struct Args {
   akantu::Real velocity = 10.0;
   akantu::Real safety_factor = 0.2;
   akantu::Real time = 0.0;
+  akantu::Real kappa = 0.2;
+  akantu::Real center_x = 0.0;
+  akantu::Real center_y = 0.0;
+  akantu::Real z_sign = 1.0;
+  std::optional<akantu::Real> cutoff = std::nullopt;
+  std::string shape = "gaussian";
+  akantu::Real angle_xy = 0.0;
+  akantu::Real angle_z = 0.0;
 };
 
 /// Parse `argv` into Args (simple, dependency-free)
@@ -35,9 +43,14 @@ void initImpactVelocityField(
     akantu::Real v0, akantu::Real kappa,
     std::pair<akantu::Real, akantu::Real> center = {0.0, 0.0},
     akantu::Real z_sign = 1.0,
-    std::optional<akantu::Real> cutoff = std::nullopt);
+    std::optional<akantu::Real> cutoff = std::nullopt,
+    const std::string &shape = "gaussian",
+    const std::pair<akantu::Real, akantu::Real> &angles = {0.0, 0.0});
 
 /// Dump per-step data to HDF5 (fragments + energies)
 void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file = "../output/tmp/data.h5");
+
+/// Save configuration file with all the initialization parameters for reproducibility
+void saveConfigFile(const Args &args, const std::string &outpath);
