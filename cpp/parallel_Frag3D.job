@@ -1,0 +1,23 @@
+#!/bin/bash -l
+#SBATCH --chdir /scratch/saporito/Frag3D/
+#SBATCH --job-name Frag3D
+#SBATCH -o out_Frag3D.%j
+#SBATCH -e err_Frag3D.%j
+#SBATCH --account lsms
+#SBATCH --nodes 3
+#SBATCH --ntasks-per-node 72
+#SBATCH --time 72:00:00
+#SBATCH --partition infiniband
+#SBATCH --qos parallel
+
+module purge
+module restore akantu_env
+
+echo STARTING AT $(date)
+
+#TEST
+
+srun /home/saporito/Frag3D/cpp/build/cpp/cohesive_sim -v 1000 -t 0.4 -T 1e-5 -msh "/home/saporito/Frag3D/input/mesh/plate_8.00e-03x8.00e-03x8.00e-04_npz3_P2.msh" -mat "/home/saporito/Frag3D/input/material/material_linear_nsn.dat"
+
+
+echo FINISHED AT $(date)

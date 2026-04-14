@@ -1,21 +1,21 @@
-seed = 1.0
+seed = 1
 
 material elastic [
     name = linear
     rho = 3900 # Density (kg/m3)
     E = 370e9 # Young's module (Pa)
-    nu = 0.22 
+    nu = 0.22
     finite_deformation = true
 ]
 
 material cohesive_linear [
     name = cohesive
-	beta = 1.0
-	G_c = 50.0
+        beta = 1.0
+        G_c = 50.0
     kappa = 1.0
     sigma_c = 0 weibull [2.62e8, 10]
     contact_after_breaking = false
     penalty = 0
-    adaptive_penalty = false
-    stable_damage = 0
+    adaptive_penalty = true
+    stiffness_cap = -1
 ]

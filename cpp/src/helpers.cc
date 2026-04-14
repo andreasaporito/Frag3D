@@ -136,7 +136,7 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
   if (nname == "lsmspc19") {
     outpath = inpath / "output" / "local";
   } else {
-    outpath = fs::path("/scratch/ghesquie/Frag3D");
+    outpath = fs::path("/scratch/saporito/Frag3D");
   }
 
   auto fmt = [](akantu::Real x) {
@@ -212,7 +212,8 @@ void initImpactVelocityField(akantu::Mesh &mesh,
     vel(i, 1) = 0.0;
     vel(i, 2) = vz;
   }
-
+  // Eccentricity (change cx and cy in dx, dy), Direction of velocity (change vx or/and vy to nonzero),
+  // different options for shape
   // Synchronize velocities across ghost nodes
   // model.synchronize(SynchronizationTag::_velocity);
 }
@@ -221,7 +222,7 @@ void initImpactVelocityField(akantu::Mesh &mesh,
 /* dumpResultsH5                                                              */
 /* -------------------------------------------------------------------------- */
 
-void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
+void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file) {
   using namespace akantu;
@@ -236,14 +237,14 @@ void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
   const Real work = cumulative_work;
   const Real total_energy = epot + ekin + edis + erev + econ - work;
 
-  // Mass: [nb_frag x 1] -> 1D
+  // //Mass: [nb_frag x 1] -> 1D
   // const auto &mass = fragments.getMass();
   // std::vector<double> frag_mass;
   // frag_mass.reserve(nb_frag);
   // for (int i = 0; i < nb_frag; ++i)
   //  frag_mass.push_back(mass(i, 0));
 
-  // Velocity: [nb_frag x dim]
+  // //Velocity: [nb_frag x dim]
   // const auto &vel = fragments.getVelocity();
   // const auto dim = static_cast<int>(vel.getNbComponent());
   // std::vector<double> frag_vel;
@@ -257,10 +258,14 @@ void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
 
   if (prank == 0) {
     // Fragments
-    // akantu::FragmentManager fragments(model);
-    // fragments.computeAllData();
-
-    // const int nb_frag = static_cast<int>(fragments.getNbFragment());
+    akantu::FragmentManager fragments(model);
+    fragments.computeAllData();
+    // We store the number of fragments (UInt getNbFragment() const method)
+    const int nb_frag = static_cast<int>(fragments.getNbFragment());
+    // We store the mass of fragments (const Array<Real> &getMass() const method)
+    const auto &frag_mass = fragments.getMass();
+    // We store the velocity of fragments (const Array<Real> &getVelocity() const method)
+    const auto &frag_vel = fragments.getVelocity();
 
     // HDF5 write with small retry (file contention)
     for (int attempt = 0; attempt < 5; ++attempt) {
@@ -281,15 +286,15 @@ void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
         continue;
       }
 
-      // if (!frag_mass.empty())
-      //   h5util::write_dataset_1d(gid, "fragment_mass", frag_mass.data(),
-      //                            static_cast<hsize_t>(frag_mass.size()));
-      // if (!frag_vel.empty())
-      //   h5util::write_dataset_2d(gid, "fragment_velocity", frag_vel.data(),
-      //                            static_cast<hsize_t>(nb_frag),
-      //                            static_cast<hsize_t>(dim));
+      if (!frag_mass.empty())
+         h5util::write_dataset_1d(gid, "fragment_mass", frag_mass.data(),
+                                  static_cast<hsize_t>(frag_mass.size()));
+      if (!frag_vel.empty())
+         h5util::write_dataset_2d(gid, "fragment_velocity", frag_vel.data(),
+                                  static_cast<hsize_t>(nb_frag),
+                                  static_cast<hsize_t>(mesh.getSpatialDimension()));
 
-      h5util::write_attr_int(gid, "nb_fragments", 0);
+      h5util::write_attr_int(gid, "nb_fragments", nb_frag);
       h5util::write_attr_double(gid, "time", static_cast<double>(n * dt));
       h5util::write_attr_double(gid, "epot", static_cast<double>(epot));
       h5util::write_attr_double(gid, "ekin", static_cast<double>(ekin));

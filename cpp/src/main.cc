@@ -42,7 +42,7 @@ void initImpactVelocityField(
     akantu::Real z_sign = 1.0,
     std::optional<akantu::Real> cutoff = std::nullopt);
 
-void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
+void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file = "../output/tmp/data.h5");
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
       // Each process writes its partition data
       model.dump();                    // bulk elements
       model.dump("cohesive elements"); // facet dumper (if configured)
-      dumpResultsH5(model, n, dt, cumulative_work, outpath + "data.h5");
+      dumpResultsH5(mesh,model, n, dt, cumulative_work, outpath + "data.h5");
     }
   }
   // Print final statistics from rank 0
