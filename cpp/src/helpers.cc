@@ -386,6 +386,8 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
     const auto &frag_mass = fragments.getMass();
     // We store the velocity of fragments (const Array<Real> &getVelocity() const method)
     const auto &frag_vel = fragments.getVelocity();
+    // We store the center of mass of fragments (const Array<Real> &getCenterOfMass() const method)
+    const auto &frag_com = fragments.getCenterOfMass();
 
     // HDF5 write with small retry (file contention)
     for (int attempt = 0; attempt < 5; ++attempt) {
@@ -411,6 +413,11 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
                                   static_cast<hsize_t>(frag_mass.size()));
       if (!frag_vel.empty())
          h5util::write_dataset_2d(gid, "fragment_velocity", frag_vel.data(),
+                                  static_cast<hsize_t>(nb_frag),
+                                  static_cast<hsize_t>(mesh.getSpatialDimension()));
+
+      if (!frag_com.empty())
+         h5util::write_dataset_2d(gid, "fragment_COM", frag_com.data(),
                                   static_cast<hsize_t>(nb_frag),
                                   static_cast<hsize_t>(mesh.getSpatialDimension()));
 
