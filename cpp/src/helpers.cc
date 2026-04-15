@@ -139,7 +139,7 @@ void initParaviewDumpers(akantu::SolidMechanicsModelCohesive &model,
                          const std::string &outpath) {
   using namespace akantu;
   model.setBaseName("tension");
-  model.setDirectory(outpath);
+  model.setDirectory(outpath + "/tension");
 
   // Bulk
   model.addDumpField("displacement");
@@ -152,6 +152,7 @@ void initParaviewDumpers(akantu::SolidMechanicsModelCohesive &model,
 
   // Cohesive facets
   model.setBaseNameToDumper("cohesive elements", "cohesive");
+  model.setDirectoryToDumper("cohesive elements", outpath + "/cohesive");
   model.addDumpFieldToDumper("cohesive elements", "displacement");
   model.addDumpFieldToDumper("cohesive elements", "damage");
   model.addDumpFieldToDumper("cohesive elements", "tractions");
@@ -180,8 +181,8 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
   if (nname == "lsmspc19") {
     outpath = inpath / "output" / "local";
   } else {
-    outpath = fs::path("/scratch/saporito/Frag3D");
-  }
+    outpath = fs::path("/scratch/saporito/Frag3D/");
+     }
 
   auto fmt = [](akantu::Real x) {
     std::ostringstream oss;
@@ -191,9 +192,8 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
     return oss.str();
   };
 
-  outpath /= ("impact_vel_" + fmt(args.velocity) + "_safety_factor_" +
-              fmt(args.safety_factor) + "_time" + fmt(args.time)) +
-             "kappa40";
+  outpath /= ("sim_vel" + fmt(args.velocity) + "_sf" + fmt(args.safety_factor) + "_T" + fmt(args.time) + "_k"
+  + fmt(args.kappa) + "_sh_" + args.shape + "_thxy" + fmt(args.angle_xy) + "_thz" + fmt(args.angle_z) + "_sgn" + fmt(args.z_sign) + "_cntr_" + fmt(args.center_x) + "_" + fmt(args.center_y));
 
   if (prank == 0) {
     try {

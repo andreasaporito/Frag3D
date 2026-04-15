@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH --chdir /scratch/saporito/Frag3D/simulation_vel_1.0e+03_safety_factor_4.0e-01_time1.0e-05kappa40
+#SBATCH --chdir /scratch/saporito/Frag3D/
 #SBATCH --job-name Frag3D
 #SBATCH -o out_Frag3D.%j
 #SBATCH -e err_Frag3D.%j
