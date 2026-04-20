@@ -177,6 +177,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (n % dump_stride_h5 == 0 || n == n_steps - 1) {
+      comm.barrier();
       //std::cout << "Writing this instead of writing into data.h5. \n";
       dumpResultsH5(mesh,model, n, dt, cumulative_work, outpath + "data.h5");
     }

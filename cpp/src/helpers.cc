@@ -384,19 +384,26 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
   const auto &comm = Communicator::getStaticCommunicator();
   Int prank = comm.whoAmI();
 
-  if (prank == 0) {
-    // Fragments
-    akantu::FragmentManager fragments(model);
-    fragments.computeAllData();
-    // We store the number of fragments (UInt getNbFragment() const method)
-    const int nb_frag = static_cast<int>(fragments.getNbFragment());
-    // We store the mass of fragments (const Array<Real> &getMass() const method)
-    const auto &frag_mass = fragments.getMass();
-    // We store the velocity of fragments (const Array<Real> &getVelocity() const method)
-    const auto &frag_vel = fragments.getVelocity();
-    // We store the center of mass of fragments (const Array<Real> &getCenterOfMass() const method)
-    const auto &frag_com = fragments.getCenterOfMass();
+  
+  akantu::FragmentManager fragments(model);
+  fragments.computeAllData();
 
+  // Fragments
+  // We store the number of fragments (UInt getNbFragment() const method)
+  const int nb_frag = static_cast<int>(fragments.getNbFragment());
+  // We store the mass of fragments (const Array<Real> &getMass() const method)
+  const auto &frag_mass = fragments.getMass();
+  // We store the velocity of fragments (const Array<Real> &getVelocity() const method)
+  const auto &frag_vel = fragments.getVelocity();
+  // We store the center of mass of fragments (const Array<Real> &getCenterOfMass() const method)
+  const auto &frag_com = fragments.getCenterOfMass();
+
+  if (prank != 0)
+  {
+    return;
+  }
+
+  if (prank == 0) {
     // HDF5 write with small retry (file contention)
     for (int attempt = 0; attempt < 5; ++attempt) {
       hid_t fid = h5util::open_or_create_file(h5_file);
