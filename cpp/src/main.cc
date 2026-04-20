@@ -33,6 +33,7 @@ struct Args {
   std::string shape = "gaussian";
   akantu::Real angle_xz = 0.0;
   akantu::Real angle_yz = 0.0;
+  std::optional<std::string> mesh_conv = std::nullopt;
 };
 
 Args parseArguments(int argc, char *argv[]);

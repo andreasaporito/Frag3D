@@ -123,6 +123,10 @@ Args parseArguments(int argc, char *argv[]) {
       need_value(a.c_str());
       args.z_sign = to_real(argv[++i]);
     }
+      else if (a == "--mesh_conv" || a == "-mc") {
+      need_value(a.c_str());
+      args.mesh_conv = (argv[++i]);
+    }
       else {
       std::cerr << "Warning: ignoring unknown option '" << a << "'.\n";
     }
@@ -192,9 +196,13 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
     return oss.str();
   };
 
-  outpath /= ("sim_vel" + fmt(args.velocity) + "_sf" + fmt(args.safety_factor) + "_T" + fmt(args.time) + "_k"
-  + fmt(args.kappa) + "_sh_" + args.shape + "_thxy" + fmt(args.angle_xz) + "_thz" + fmt(args.angle_yz) + "_sgn" + fmt(args.z_sign) + "_cntr_" + fmt(args.center_x) + "_" + fmt(args.center_y));
-
+  if (!args.mesh_conv) {
+    outpath /= ("sim_vel" + fmt(args.velocity) + "_sf" + fmt(args.safety_factor) + "_T" + fmt(args.time) + "_k"
+        + fmt(args.kappa) + "_sh_" + args.shape + "_thxy" + fmt(args.angle_xz) + "_thz" + fmt(args.angle_yz)
+        + "_sgn" + fmt(args.z_sign) + "_cntr_" + fmt(args.center_x) + "_" + fmt(args.center_y));
+  } else {
+      outpath /= args.mesh_conv.value();
+  }
   if (prank == 0) {
     try {
       if (fs::exists(outpath))
