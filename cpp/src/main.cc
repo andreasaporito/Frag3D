@@ -31,8 +31,8 @@ struct Args {
   akantu::Real z_sign = 1.0;
   std::optional<akantu::Real> cutoff = std::nullopt;
   std::string shape = "gaussian";
-  akantu::Real angle_xy = 0.0;
-  akantu::Real angle_z = 0.0;
+  akantu::Real angle_xz = 0.0;
+  akantu::Real angle_yz = 0.0;
 };
 
 Args parseArguments(int argc, char *argv[]);
@@ -75,6 +75,9 @@ int main(int argc, char *argv[]) {
 
   // 1) args & dirs -----------------------------------------------------------
   Args args = parseArguments(argc, argv);
+
+  static char aka_seed[] = "AKA_SEED=1";
+  putenv(aka_seed);
 
   initialize(args.material_file, argc, argv);
 
@@ -135,7 +138,7 @@ int main(int argc, char *argv[]) {
                           /*z_sign=*/args.z_sign,
                           /*cutoff=*/args.cutoff,
                           /*shape=*/args.shape,
-                          {/*xy_angle=*/args.angle_xy, /*z_angle=*/args.angle_z});
+                          {/*xy_angle=*/args.angle_xz, /*z_angle=*/args.angle_yz});
 
   // 4) time integration setup ------------------------------------------------
   Real dt = model.getStableTimeStep() * args.safety_factor;
@@ -152,8 +155,8 @@ int main(int argc, char *argv[]) {
   Real cumulative_work = 0.0;
 
   // 5) main loop -------------------------------------------------------------
-  const int dump_stride_paraview = std::min(n_steps, n_steps / 500);
-  const int dump_stride_h5 = std::min(n_steps, n_steps / 100);
+  const int dump_stride_paraview = std::max(1, n_steps / 500);
+  const int dump_stride_h5 = std::max(1, n_steps / 1000);
 
   for (int n = 0; n < n_steps; ++n) {
     // Check cohesive stress (parallel operation with ghost synchronization)
@@ -173,6 +176,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (n % dump_stride_h5 == 0 || n == n_steps - 1) {
+      //std::cout << "Writing this instead of writing into data.h5. \n";
       dumpResultsH5(mesh,model, n, dt, cumulative_work, outpath + "data.h5");
     }
 

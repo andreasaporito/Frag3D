@@ -111,13 +111,13 @@ Args parseArguments(int argc, char *argv[]) {
       need_value(a.c_str());
       args.shape = argv[++i];
     }
-      else if (a == "--angle_xy" || a == "-axy") {
+      else if (a == "--angle_xz" || a == "-axz") {
       need_value(a.c_str());
-      args.angle_xy = to_real(argv[++i]);
+      args.angle_xz = to_real(argv[++i]);
     }
-      else if (a == "--angle_z" || a == "-az") {
+      else if (a == "--angle_yz" || a == "-ayz") {
       need_value(a.c_str());
-      args.angle_z = to_real(argv[++i]);
+      args.angle_yz = to_real(argv[++i]);
     }
       else if (a == "--z_sign" || a == "-zs") {
       need_value(a.c_str());
@@ -193,7 +193,7 @@ std::pair<std::string, std::string> setupDir(const std::string &nname,
   };
 
   outpath /= ("sim_vel" + fmt(args.velocity) + "_sf" + fmt(args.safety_factor) + "_T" + fmt(args.time) + "_k"
-  + fmt(args.kappa) + "_sh_" + args.shape + "_thxy" + fmt(args.angle_xy) + "_thz" + fmt(args.angle_z) + "_sgn" + fmt(args.z_sign) + "_cntr_" + fmt(args.center_x) + "_" + fmt(args.center_y));
+  + fmt(args.kappa) + "_sh_" + args.shape + "_thxy" + fmt(args.angle_xz) + "_thz" + fmt(args.angle_yz) + "_sgn" + fmt(args.z_sign) + "_cntr_" + fmt(args.center_x) + "_" + fmt(args.center_y));
 
   if (prank == 0) {
     try {
@@ -301,12 +301,12 @@ void initImpactVelocityField(akantu::Mesh &mesh,
 
   const uint64_t shape_hash = hash_str(shape.c_str());
 
-  const Real angle_xy_rad = angles.first * M_PI / 180.0;
-  const Real angle_z_rad = angles.second * M_PI / 180.0;
-  const Real cos_z = std::cos(angle_z_rad);
-  const Real sin_z = std::sin(angle_z_rad);
-  const Real cos_xy = std::cos(angle_xy_rad);
-  const Real sin_xy = std::sin(angle_xy_rad);
+  const Real angle_xz_rad = angles.first * M_PI / 180.0;
+  const Real angle_yz_rad = angles.second * M_PI / 180.0;
+  const Real cos_xz = std::cos(angle_xz_rad);
+  const Real sin_xz = std::sin(angle_xz_rad);
+  const Real cos_yz = std::cos(angle_yz_rad);
+  const Real sin_yz = std::sin(angle_yz_rad);
 
   for (UInt i = 0; i < nb_nodes; ++i) {
     const Real dx = nodes(i, 0) - cx;
@@ -319,7 +319,7 @@ void initImpactVelocityField(akantu::Mesh &mesh,
         case hash_str("gaussian"):
           magnitude = v0 * std::exp(-r2 * inv_two_sigma2);
           break;
-        case hash_str("circular impulse"):
+        case hash_str("circular"):
           magnitude = (r2 <= sigma * sigma) ? v0 : 0.0;
           break;
           case hash_str("parabolic"):
@@ -330,9 +330,9 @@ void initImpactVelocityField(akantu::Mesh &mesh,
           magnitude = v0 * std::exp(-r2 * inv_two_sigma2);
       }
 
-      vel(i, 0) = magnitude * cos_z * cos_xy;
-      vel(i, 1) = magnitude * cos_z * sin_xy;
-      vel(i, 2) = z_sign * magnitude * sin_z;
+      vel(i, 0) = magnitude * sin_yz;
+      vel(i, 1) = magnitude * cos_yz * sin_xz;
+      vel(i, 2) = z_sign * magnitude * cos_yz * cos_xz;
     }
 
   }
@@ -458,6 +458,6 @@ void saveConfigFile(const Args &args, const std::string &outpath) {
   ofs << "Time: " << args.time << "\n";
   ofs << "Cutoff: " << args.cutoff.value_or(0.0) << "\n";
   ofs << "Shape: " << args.shape << "\n";
-  ofs << "XY Angle: " << args.angle_xy << "\n";
-  ofs << "Z Angle: " << args.angle_z << "\n";
+  ofs << "XY Angle: " << args.angle_xz << "\n";
+  ofs << "Z Angle: " << args.angle_yz << "\n";
 }

@@ -21,8 +21,8 @@ struct Args {
   akantu::Real z_sign = 1.0;
   std::optional<akantu::Real> cutoff = std::nullopt;
   std::string shape = "gaussian";
-  akantu::Real angle_xy = 0.0;
-  akantu::Real angle_z = 0.0;
+  akantu::Real angle_xz = 0.0;
+  akantu::Real angle_yz = 0.0;
 };
 
 /// Parse `argv` into Args (simple, dependency-free)
