@@ -350,7 +350,7 @@ void initImpactVelocityField(akantu::Mesh &mesh,
 /* dumpResultsH5                                                              */
 /* -------------------------------------------------------------------------- */
 
-void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model, int n,
+void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model,akantu::FragmentManager & fragments, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file) {
   using namespace akantu;
@@ -365,7 +365,7 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
   const Real work = cumulative_work;
   const Real total_energy = epot + ekin + edis + erev + econ - work;
 
-  // //Mass: [nb_frag x 1] -> 1D
+   //Mass: [nb_frag x 1] -> 1D
   // const auto &mass = fragments.getMass();
   // std::vector<double> frag_mass;
   // frag_mass.reserve(nb_frag);
@@ -385,7 +385,6 @@ void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &mode
   Int prank = comm.whoAmI();
 
   
-  akantu::FragmentManager fragments(model);
   fragments.computeAllData();
 
   // Fragments

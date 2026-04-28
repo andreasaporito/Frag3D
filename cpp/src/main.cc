@@ -11,7 +11,6 @@
 #include "communicator.hh" // Add for parallel support
 #include "mesh.hh"
 #include "solid_mechanics_model_cohesive.hh"
-
 // header-only helpers for HDF5
 #include "h5_utils.hh"
 
@@ -53,7 +52,9 @@ void initImpactVelocityField(
     const std::string &shape = "gaussian",
     const std::pair<akantu::Real, akantu::Real> &angles = {0.0, 0.0});
 
-void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model, int n,
+#include "fragment_manager.hh"
+
+void dumpResultsH5(akantu::Mesh &mesh, akantu::SolidMechanicsModelCohesive &model,akantu::FragmentManager & fragments, int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file = "../output/tmp/data.h5");
 
@@ -127,6 +128,8 @@ int main(int argc, char *argv[]) {
   // Update automatic insertion
   model.updateAutomaticInsertion();
 
+  akantu::FragmentManager fragment_manager(model);
+
   // 3) dumpers & ICs ---------------------------------------------------------
   initParaviewDumpers(model, outpath);
 
@@ -179,7 +182,7 @@ int main(int argc, char *argv[]) {
     if (n % dump_stride_h5 == 0 || n == n_steps - 1) {
       comm.barrier();
       //std::cout << "Writing this instead of writing into data.h5. \n";
-      dumpResultsH5(mesh,model, n, dt, cumulative_work, outpath + "data.h5");
+      dumpResultsH5(mesh,model,fragment_manager, n, dt, cumulative_work, outpath + "data.h5");
     }
 
   }

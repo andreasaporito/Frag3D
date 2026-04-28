@@ -6,7 +6,7 @@
 
 #include "mesh.hh"
 #include "solid_mechanics_model_cohesive.hh"
-
+#include "fragment_manager.hh"
 /// All CLI/runtime parameters
 struct Args {
   std::string material_file = "AD995_cohesive_contact_m10_stable.dat";
@@ -49,7 +49,8 @@ void initImpactVelocityField(
     const std::pair<akantu::Real, akantu::Real> &angles = {0.0, 0.0});
 
 /// Dump per-step data to HDF5 (fragments + energies)
-void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model, int n,
+void dumpResultsH5(akantu::SolidMechanicsModelCohesive &model,
+	       akantu::FragmentManager & fragments,	int n,
                    akantu::Real dt, akantu::Real cumulative_work,
                    const std::string &h5_file = "../output/tmp/data.h5");
 
